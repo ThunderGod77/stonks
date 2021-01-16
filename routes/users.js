@@ -3,6 +3,7 @@ const router = express.Router();
 
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { v4 } = require("uuid");
 
 const { Users, Courses } = require("./../database/db");
 const { ObjectID } = require("mongodb");
@@ -10,7 +11,7 @@ const { ObjectID } = require("mongodb");
 router.get("/test", (req, res) => {
   res.status(200).json({ ping: "pong" });
 });
-
+//user
 router.post("/login", async (req, res, next) => {
   try {
     const result = await Users.findOne({ email: req.body.email });
@@ -76,6 +77,7 @@ router.post("/addUser", async (req, res, next) => {
   res.status(201).json({ ins: result.insertedId });
 });
 
+//user lofin verification middleware
 const verifyUser = async (req, res, next) => {
   const authHeader = req.get("Authorization");
   if (!authHeader) {
@@ -105,10 +107,25 @@ router.get("/testOP", verifyUser, (req, res, next) => {
   res.status(200).json({ mo: "lo" });
 });
 
+//Course
+router.post("/getCourses", verifyUser, async (req, res, next) => {
+  if (!req.body.verified) {
+    next(err);
+    throw new Error("not verified");
+  }
+  try {
+    const courses = await Courses.find({ userId: req.body._id });
+    res.status(200).json({ msg: "found", courses });
+  } catch (err) {
+    next(err);
+    throw new Error("Database is having a problem");
+  }
+});
+
 router.post("/addCourses", verifyUser, async (req, res, next) => {
   if (!req.body.verified) {
     next(err);
-    throw new Error("Database is having a problem");
+    throw new Error("not verified");
   }
   let course = {
     courseName: req.body.courseName,
@@ -117,7 +134,7 @@ router.post("/addCourses", verifyUser, async (req, res, next) => {
     rating: req.body.rating,
     resourcesLink: req.body.resources,
     notes: [],
-    _id: req.body._id,
+    userId: req.body._id,
   };
   try {
     console.log(req.body._id);
@@ -129,13 +146,76 @@ router.post("/addCourses", verifyUser, async (req, res, next) => {
   res.status(201).json({ msg: "course added succesfully" });
 });
 
-router.post("addNotes", verifyUser, async (req, res, next) => {
+router.post("/deleteCourses", verifyUser, async (req, res, next) => {
   if (!req.body.verified) {
+    next(err);
+    throw new Error("not verified");
+  }
+
+  try {
+    const result = await Courses.deleteOne({
+      _id: new ObjectID(req.body.courseId),
+    });
+  } catch (error) {
     next(err);
     throw new Error("Database is having a problem");
   }
+  res.status(201).json({ msg: "course added succesfully" });
+});
+
+router.post("/updateCourses", verifyUser, async (req, res, next) => {
+  if (!req.body.verified) {
+    next(err);
+    throw new Error("not verified");
+  }
+
+  try {
+    const result = await Courses.updateOne(
+      { _id: new ObjectID(req.body.courseId) },
+      {
+        $set: {
+          courseName: req.body.courseName,
+          courseLink: req.body.courseLink,
+          resourcesLink: req.body.resources,
+          description: req.body.description,
+          rating: req.body.rating,
+        },
+      }
+    );
+  } catch (error) {
+    next(err);
+    throw new Error("Database is having a problem");
+  }
+  res.status(201).json({ msg: "course added succesfully" });
+});
+
+//Notes
+
+router.get("/getNotes", verifyUser, async (req, res, next) => {
+  if (!req.body.verified) {
+    next(err);
+    throw new Error("not verified");
+  }
+  try {
+    let enotes = await Courses.findOne({
+      _id: new ObjectID(req.body.courseId),
+    });
+    const notes = enotes.notes;
+    res.status(200).json({ msg: "found", notes });
+  } catch (err) {
+    next(err);
+    throw new Error("Database is having a problem");
+  }
+});
+
+router.post("/addNotes", verifyUser, async (req, res, next) => {
+  if (!req.body.verified) {
+    next(err);
+    throw new Error("not verified");
+  }
   let courseId = req.body.courseId;
   let note = {
+    noteId: v4(),
     text: req.body.text,
     timeStamp: req.body.timeStamp,
     heading: req.body.heading,
@@ -148,6 +228,43 @@ router.post("addNotes", verifyUser, async (req, res, next) => {
   } catch (err) {
     next(err);
     throw new Error("Database is having a problem");
+  }
+});
+router.post("/deleteNotes", verifyUser, async (req, res, next) => {
+  try {
+    if (!req.body.verified) {
+      next(err);
+      throw new Error("not verified");
+    }
+    const result = Courses.updateOne(
+      { _id: new ObjectID(req.body.courseId) },
+      { $pull: { notes: { $elematch: { noteId: req.body.noteId } } } }
+    );
+    res.status(200).json({ msg: "done" });
+  } catch (err) {
+    next(err);
+    throw new Error("not verified");
+  }
+});
+router.post("/updateNotes", verifyUser, (req, res, next) => {
+  try {
+    if (!req.body.verified) {
+      next(err);
+      throw new Error("not verified");
+    }
+    const result = Courses.updateOne(
+      { _id: new ObjectID(req.body.courseId), "notes.noteId": req.body.noteId },
+      {
+        $set: {
+          "notes.$.heading": req.body.heading,
+          "notes.$.text": req.body.text,
+        },
+      }
+    );
+    res.status(200).json({ msg: "done" });
+  } catch (err) {
+    next(err);
+    throw new Error("not verified");
   }
 });
 
