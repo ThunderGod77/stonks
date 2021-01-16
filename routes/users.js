@@ -4,7 +4,8 @@ const router = express.Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-const { Users } = require("./../database/db");
+const { Users, Courses } = require("./../database/db");
+const { ObjectID } = require("mongodb");
 
 router.get("/test", (req, res) => {
   res.status(200).json({ ping: "pong" });
@@ -102,6 +103,52 @@ const verifyUser = async (req, res, next) => {
 router.get("/testOP", verifyUser, (req, res, next) => {
   console.log(req.body);
   res.status(200).json({ mo: "lo" });
+});
+
+router.post("/addCourses", verifyUser, async (req, res, next) => {
+  if (!req.body.verified) {
+    next(err);
+    throw new Error("Database is having a problem");
+  }
+  let course = {
+    courseName: req.body.courseName,
+    courseLink: req.body.courseLink,
+    description: req.body.description,
+    rating: req.body.rating,
+    resourcesLink: req.body.resources,
+    notes: [],
+    _id: req.body._id,
+  };
+  try {
+    console.log(req.body._id);
+    const result = await Courses.insertOne({ course });
+  } catch (error) {
+    next(err);
+    throw new Error("Database is having a problem");
+  }
+  res.status(201).json({ msg: "course added succesfully" });
+});
+
+router.post("addNotes", verifyUser, async (req, res, next) => {
+  if (!req.body.verified) {
+    next(err);
+    throw new Error("Database is having a problem");
+  }
+  let courseId = req.body.courseId;
+  let note = {
+    text: req.body.text,
+    timeStamp: req.body.timeStamp,
+    heading: req.body.heading,
+  };
+  try {
+    const result = await Courses.updateOne(
+      { _id: new ObjectID(courseId) },
+      { $push: { notes: note } }
+    );
+  } catch (err) {
+    next(err);
+    throw new Error("Database is having a problem");
+  }
 });
 
 router.use(function (err, req, res, next) {

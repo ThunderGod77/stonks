@@ -14,5 +14,5 @@ async function run() {
 }
 run().catch(console.dir);
 exports.Users = client.db("mlh").collection("users");
-exports.formDataCol = client.db("form").collection("formData");
-exports.userCol = client.db("form").collection("users");
+exports.Courses = client.db("mlh").collection("courses");
+exports.userCol = client.db("mlh").collection("notes");
