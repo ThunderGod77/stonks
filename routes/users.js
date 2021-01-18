@@ -82,25 +82,33 @@ const verifyUser = async (req, res, next) => {
   const authHeader = req.get("Authorization");
   if (!authHeader) {
     req.body.verified = "false1";
-    next();
+      res.status(401).send({"msg":"bad/no token"});
   }
+    console.log(authHeader);
   const token = authHeader;
   let decodedToken;
   try {
     decodedToken = await jwt.verify(token, "somesupersecretkey");
   } catch (err) {
-    req.body.verified = "false2";
-    next();
+      req.body.verified = "false2";
+      console.log("false2");  
+      console.log(err.stack);
+      res.status(401).send({"msg": "bad authentication"})
+      next('route')
+      return;
   }
   if (!decodedToken) {
-    req.body.verified = "false3";
-    next();
+      req.body.verified = "false3";
+      console.log("false3");
+      res.status(401).send({"msg": "bad authentication2"})
+      next('route')
+      return;
   }
-
+  
   req.body._id = decodedToken.id;
   req.body.verified = true;
-
   next();
+  
 };
 router.get("/testOP", verifyUser, (req, res, next) => {
   console.log(req.body);
@@ -114,13 +122,33 @@ router.post("/getCourses", verifyUser, async (req, res, next) => {
     throw new Error("not verified");
   }
   try {
-    const courses = await Courses.find({ userId: req.body._id });
-    res.status(200).json({ msg: "found", courses });
+    const courses = await Courses.find({ 'courses.userId': req.body._id });
+      if (courses) {
+	  res.status(200).json(courses.toArray());
+      }
   } catch (err) {
-    next(err);
+      next(err);
+      console.log(err.stack);
     throw new Error("Database is having a problem");
   }
 });
+router.get("/getCoursesbyName", verifyUser, async (req, res, next) => {
+  if (!req.body.verified) {
+    next(err);
+    throw new Error("not verified");
+  }
+  try {
+    const courses = await Courses.find({ 'course.courseName': req.body.courseName });
+      if (courses) {
+	  res.status(200).json(courses.toArray());
+      }
+  } catch (err) {
+      next(err);
+      console.log(err.stack);
+    throw new Error("Database is having a problem");
+  }
+});
+
 
 router.post("/addCourses", verifyUser, async (req, res, next) => {
   if (!req.body.verified) {
@@ -269,7 +297,8 @@ router.post("/updateNotes", verifyUser, (req, res, next) => {
 });
 
 router.use(function (err, req, res, next) {
-  res.status(500).send({ err: "Some error occured" });
+    res.status(500).send({ err: "Some error occured" });
+    console.log(err.stack);
 });
 
 module.exports = router;
