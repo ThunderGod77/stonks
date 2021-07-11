@@ -79,36 +79,24 @@ router.post("/addUser", async (req, res, next) => {
 
 //user lofin verification middleware
 const verifyUser = async (req, res, next) => {
-  const authHeader = req.get("Authorization");
-  if (!authHeader) {
-    req.body.verified = "false1";
-      res.status(401).send({"msg":"bad/no token"});
-  }
-    console.log(authHeader);
-  const token = authHeader;
-  let decodedToken;
+
   try {
-    decodedToken = await jwt.verify(token, "somesupersecretkey");
-  } catch (err) {
-      req.body.verified = "false2";
-      console.log("false2");  
-      console.log(err.stack);
-      res.status(401).send({"msg": "bad authentication"})
-      next('route')
-      return;
+    const token = req.headers['authorization'];
+    if (!token) return res.status(401).json({'msg': 'bad/no token'});
+    let decodedToken = await jwt.verify(token, "somesupersecretkey");
+    if (!decodedToken) return res.status(401).json({'msg': "can't decode token"});
+    req.body._id = decodedToken.id;
+    req.body.verified = true;
+    next();
   }
-  if (!decodedToken) {
-      req.body.verified = "false3";
-      console.log("false3");
-      res.status(401).send({"msg": "bad authentication2"})
-      next('route')
-      return;
+  catch (err) {
+
+    console.log(err.stack);
+    return res.status(401).send({"msg": "bad authentication"});
+
+
   }
-  
-  req.body._id = decodedToken.id;
-  req.body.verified = true;
-  next();
-  
+
 };
 router.get("/testOP", verifyUser, (req, res, next) => {
   console.log(req.body);
@@ -122,13 +110,16 @@ router.post("/getCourses", verifyUser, async (req, res, next) => {
     throw new Error("not verified");
   }
   try {
-    const courses = await Courses.find({ 'courses.userId': req.body._id });
-      if (courses) {
-	  res.status(200).json(courses.toArray());
-      }
+    const courses = await Courses.find({ userId: req.body._id }).toArray();
+    if (courses) {
+	     return res.status(200).json(courses);
+    }
+    else {
+      return res.status(404).json({"msg": "no courses found"})
+    }
   } catch (err) {
-      next(err);
-      console.log(err.stack);
+    next(err);
+    console.log(err.stack);
     throw new Error("Database is having a problem");
   }
 });
@@ -138,19 +129,24 @@ router.get("/getCoursesbyName", verifyUser, async (req, res, next) => {
     throw new Error("not verified");
   }
   try {
-    const courses = await Courses.find({ 'course.courseName': req.body.courseName });
-      if (courses) {
-	  res.status(200).json(courses.toArray());
-      }
-  } catch (err) {
-      next(err);
-      console.log(err.stack);
+    const courses = await Courses.find({userId: req.body._id}).toArray();
+    if (courses) {
+
+      return res.status(200).json(courses);
+    }
+    else {
+      return res.status(404).json({"msg": "can't find course"});
+    }
+  }
+  catch (err) {
+    next(err);
+    console.log(err.stack);
     throw new Error("Database is having a problem");
   }
 });
 
 
-router.post("/addCourses", verifyUser, async (req, res, next) => {
+router.post("/addCourse", verifyUser, async (req, res, next) => {
   if (!req.body.verified) {
     next(err);
     throw new Error("not verified");
@@ -165,8 +161,7 @@ router.post("/addCourses", verifyUser, async (req, res, next) => {
     userId: req.body._id,
   };
   try {
-    console.log(req.body._id);
-    const result = await Courses.insertOne({ course });
+    const result = await Courses.insertOne(course);
   } catch (error) {
     next(err);
     throw new Error("Database is having a problem");
