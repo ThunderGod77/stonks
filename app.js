@@ -4,6 +4,8 @@ const bodyParser = require("body-parser");
 const app = express();
 
 const userRoutes = require("./routes/users");
+const courseRoutes = require("./routes/courses");
+const noteRoutes = require("./routes/notes");
 
 app.use(bodyParser.json());
 
@@ -21,6 +23,8 @@ app.use("/ping", (req, res, next) => {
   res.status(200).json({ name: "pong" });
 });
 app.use("/user", userRoutes);
+app.use("/course", courseRoutes);
+app.use("/note", noteRoutes);
 
 app.listen(8080, () => {
   console.log("Serving on port 8080");

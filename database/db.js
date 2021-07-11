@@ -15,4 +15,4 @@ async function run() {
 run().catch(console.dir);
 exports.Users = client.db("mlh").collection("users");
 exports.Courses = client.db("mlh").collection("courses");
-exports.userCol = client.db("mlh").collection("notes");
+exports.Notes = client.db("mlh").collection("notes");
